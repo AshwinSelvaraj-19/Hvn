@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import { showNotice } from '@/systems/ui/noticeStore'
 
@@ -39,6 +39,7 @@ export default function App() {
 function ExperienceShell() {
   const { locationId, transitionTo } = useTransition()
   const [cinematic, setCinematic] = useState(true)
+  const [introVersion, setIntroVersion] = useState(0)
   const gateCinematic = useSyncExternalStore(subscribeGateCinematic, getGateCinematicActive)
   const playerDisabled = cinematic || gateCinematic
 
@@ -50,20 +51,27 @@ function ExperienceShell() {
     w.__HEAVEN__ = {
       ...(w.__HEAVEN__ ?? {}),
       transitionTo,
-      replayCinematic: () => setCinematic(true),
+      replayCinematic: () => {
+        setIntroVersion((v) => v + 1)
+        setCinematic(true)
+      },
       showNotice,
     }
   }, [transitionTo])
+
+  const handleCinematicComplete = useCallback(() => {
+    setCinematic(false)
+  }, [])
 
   return (
     <>
       <GameCanvas locationId={locationId} cinematic={cinematic} gateCinematic={gateCinematic} />
       <HUD hidden={playerDisabled} />
       <NoticeOverlay />
-      {/* Keyed so replayCinematic() remounts and re-runs the sequence. */}
+      {/* Key only changes on explicit replayCinematic() — never on normal completion. */}
       <CinematicOverlay
-        key={cinematic ? 'playing' : 'done'}
-        onComplete={() => setCinematic(false)}
+        key={`intro-${introVersion}`}
+        onComplete={handleCinematicComplete}
       />
       <GateOverlay />
       <LoadingOverlay />
